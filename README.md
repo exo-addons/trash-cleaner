@@ -1,0 +1,2 @@
+Trash Cleaner Add-on
+=======
