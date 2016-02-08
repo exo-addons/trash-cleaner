@@ -4,7 +4,7 @@
   <parent>
     <artifactId>trash-cleaner-extension</artifactId>
     <groupId>org.exoplatform.addons.trash-cleaner</groupId>
-    <version>1.0.x-SNAPSHOT</version>
+    <version>1.0.0</version>
   </parent>
   <artifactId>trash-cleaner-service</artifactId>
   <packaging>jar</packaging>
