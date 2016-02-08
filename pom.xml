@@ -1,28 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
- <parent>
+  <parent>
     <artifactId>addons-parent-pom</artifactId>
     <groupId>org.exoplatform.addons</groupId>
     <version>5</version>
   </parent>
- 
-
   <groupId>org.exoplatform.addons.trash-cleaner</groupId>
   <artifactId>trash-cleaner-extension</artifactId>
   <version>1.0.x-SNAPSHOT</version>
-  
-  <name>Trash cleaner Extension</name>
   <packaging>pom</packaging>
+  <name>Trash cleaner Extension</name>
   <description>Trash cleaner Extension</description>
-
+  <modules>
+    <module>service</module>
+    <module>packaging</module>
+  </modules>
   <scm>
     <connection>scm:git:git://github.com/exo-addons/trash-cleaner.git</connection>
     <developerConnection>scm:git:git@github.com:exo-addons/trash-cleaner.git</developerConnection>
-    <url>https://github.com/exo-addons/trash-cleaner</url>
     <tag>HEAD</tag>
+    <url>https://github.com/exo-addons/trash-cleaner</url>
   </scm>
-
   <dependencyManagement>
     <dependencies>
       <!-- Import versions from platform project -->
@@ -35,9 +34,4 @@
       </dependency>
     </dependencies>
   </dependencyManagement>
-
-  <modules>
-    <module>service</module>
-    <module>packaging</module>
-  </modules>
 </project>
