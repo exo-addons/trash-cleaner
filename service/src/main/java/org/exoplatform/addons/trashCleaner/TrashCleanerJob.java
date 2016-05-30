@@ -123,7 +123,7 @@ public class TrashCleanerJob implements Job {
             }
             checkReferencesOfChildNode(node,relationService);
             node.remove();
-            parentNode.save();
+            parentNode.getSession().save();
         } catch(ReferentialIntegrityException ref){
 	        //LOG.info("ReferentialIntegrityException when removing " + node.getName() + " node from Trash", ref);
             session.refresh(false);
