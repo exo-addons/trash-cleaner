@@ -90,16 +90,11 @@ public class TrashCleanerJob implements Job {
         ActionServiceContainer actionService = (ActionServiceContainer) ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(ActionServiceContainer.class);
         ThumbnailService thumbnailService = (ThumbnailService) ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(ThumbnailService.class);
         RepositoryService repoService = (RepositoryService) ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(RepositoryService.class);
-        RelationsService relationService = (RelationsService) ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(RelationsService.class);
         Session session = node.getSession();
         Node parentNode = node.getParent();
         try{
             try{
-                PropertyIterator iter = node.getReferences();
-                while (iter.hasNext()){
-                    Node refNode = iter.nextProperty().getParent();
-                    relationService.removeRelation(refNode, node.getPath());
-                }
+                removeReferences(node);
             } catch(Exception ex){
                 LOG.info("An error occurs while removing relations", ex);
             }
@@ -121,7 +116,6 @@ public class TrashCleanerJob implements Job {
             } catch(Exception ex){
                 LOG.info("An error occurs while removing audit ", ex);
             }
-            checkReferencesOfChildNode(node,relationService);
             node.remove();
             parentNode.getSession().save();
         } catch(ReferentialIntegrityException ref){
@@ -136,6 +130,22 @@ public class TrashCleanerJob implements Job {
         return;
     }
 
+    private void removeReferences(Node node) throws Exception {
+        RelationsService relationService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(RelationsService.class);
+        PropertyIterator iter = node.getReferences();
+        while (iter.hasNext()){
+            Node refNode = iter.nextProperty().getParent();
+            relationService.removeRelation(refNode, node.getPath());
+        }
+
+        NodeIterator children = node.getNodes();
+        while (children.hasNext()) {
+            Node child = children.nextNode();
+            removeReferences(child);
+        }
+
+    }
+
     private void removeAuditForNode(Node node, ManageableRepository repository) throws Exception {
         Session session = SessionProvider.createSystemProvider().getSession(node.getSession().getWorkspace().getName(), repository);
         if (session.getRootNode().hasNode("exo:audit") &&
@@ -145,22 +155,4 @@ public class TrashCleanerJob implements Job {
         }
     }
 
-    private void checkReferencesOfChildNode (Node node, RelationsService relationService) throws Exception {
-        NodeIterator children = node.getNodes();
-        while (children.hasNext()) {
-            Node child = children.nextNode();
-            try{
-                PropertyIterator iter = child.getReferences();
-                while (iter.hasNext()){
-                    Node refNode = iter.nextProperty().getParent();
-                    LOG.warn("Node "+refNode.getPath()+" references node "+child.getPath()+". Should remove this reference before removing node.");
-                }
-                checkReferencesOfChildNode(child,relationService);
-            } catch(Exception ex){
-                LOG.info("An error occurs while removing relations", ex);
-            }
-
-        }
-
-    }
 }
