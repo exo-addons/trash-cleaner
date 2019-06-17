@@ -24,7 +24,7 @@
   <parent>
     <artifactId>trash-cleaner-extension</artifactId>
     <groupId>org.exoplatform.addons.trash-cleaner</groupId>
-    <version>1.0.x-SNAPSHOT</version>
+    <version>1.0.2</version>
   </parent>
   <artifactId>trash-cleaner-packaging</artifactId>
   <packaging>pom</packaging>
