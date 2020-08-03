@@ -4,8 +4,6 @@ package org.exoplatform.addons.trashCleaner;
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.services.cms.actions.ActionServiceContainer;
 import org.exoplatform.services.cms.documents.TrashService;
-import org.exoplatform.services.cms.relations.RelationsService;
-import org.exoplatform.services.cms.taxonomy.TaxonomyService;
 import org.exoplatform.services.cms.thumbnail.ThumbnailService;
 import org.exoplatform.services.jcr.RepositoryService;
 
@@ -18,15 +16,16 @@ import org.exoplatform.services.log.Log;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
+import org.quartz.DisallowConcurrentExecution;
 
 import javax.jcr.*;
 import javax.jcr.nodetype.ConstraintViolationException;
-import javax.jcr.nodetype.NodeType;
 import java.util.Calendar;
 
 /**
  * Created by Romain Dénarié (romain.denarie@exoplatform.com) on 22/01/16.
  */
+@DisallowConcurrentExecution
 public class TrashCleanerJob implements Job {
 
     private static final Log LOG = ExoLogger.getLogger(TrashCleanerJob.class);
@@ -38,10 +37,12 @@ public class TrashCleanerJob implements Job {
         String timeLimit = System.getProperty("trashcleaner.lifetime");
         if (timeLimit == null) timeLimit = "30";
         LOG.info("Start TrashCleanerJob, delete nodes in trash older than "+timeLimit+" days.");
-        TrashService trashService = (TrashService) ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(TrashService.class);
+        TrashService trashService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(TrashService.class);
 	    int deletedNode = 0;
         Node trashNode = trashService.getTrashHomeNode();
+
         try {
+
             if (trashNode.hasNodes()){
                 NodeIterator childNodes = trashNode.getNodes();
                 long size = childNodes.getSize();
@@ -52,6 +53,8 @@ public class TrashCleanerJob implements Job {
                     try {
                         if (current % 20 == 0) {
                             LOG.info("Checking node " + currentNode.getName() + " node from Trash ("+current+"/"+size+")");
+                        } else {
+                            LOG.debug("Checking node " + currentNode.getName() + " node from Trash ("+current+"/"+size+")");
                         }
                         if (currentNode.getName().equals("exo:actions") && currentNode.hasNode("trashFolder")) {
                             continue;
@@ -59,11 +62,11 @@ public class TrashCleanerJob implements Job {
                         if (currentNode.hasProperty("exo:lastModifiedDate")) {
                             long dateCreated = currentNode.getProperty("exo:lastModifiedDate").getDate().getTimeInMillis();
                             if ((Calendar.getInstance().getTimeInMillis() - dateCreated > Long.parseLong(timeLimit)*24*60*60*1000) && (currentNode.isNodeType("exo:restoreLocation"))){
-                                deleteNode(currentNode, trashService);
+                                deleteNode(currentNode);
 				                deletedNode++;
                             }
                         } else {
-                            deleteNode(currentNode, trashService);
+                            deleteNode(currentNode);
 			                deletedNode++;
                         }
                         current++;
@@ -78,20 +81,13 @@ public class TrashCleanerJob implements Job {
         LOG.info("Empty Trash folder successfully! "+deletedNode+" nodes deleted");
     }
 
-    private static void removeMixins(Node node) throws Exception {
-        NodeType[] mixins = node.getMixinNodeTypes();
-        for (NodeType nodeType : mixins) {
-            node.removeMixin(nodeType.getName());
-        }
-    }
-
-    public void deleteNode(Node node, TrashService trashService) throws Exception{
-        TaxonomyService taxonomyService = (TaxonomyService) ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(TaxonomyService.class);
-        ActionServiceContainer actionService = (ActionServiceContainer) ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(ActionServiceContainer.class);
-        ThumbnailService thumbnailService = (ThumbnailService) ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(ThumbnailService.class);
-        RepositoryService repoService = (RepositoryService) ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(RepositoryService.class);
+    public void deleteNode(Node node) throws Exception{
+        ActionServiceContainer actionService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(ActionServiceContainer.class);
+        ThumbnailService thumbnailService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(ThumbnailService.class);
+        RepositoryService repoService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(RepositoryService.class);
         Session session = node.getSession();
         Node parentNode = node.getParent();
+        LOG.debug("Try to delete node "+node.getPath());
         try{
             try{
                 removeReferences(node);
@@ -117,27 +113,27 @@ public class TrashCleanerJob implements Job {
                 LOG.info("An error occurs while removing audit ", ex);
             }
             node.remove();
-            parentNode.getSession().save();
+            parentNode.save();
+            LOG.debug("Node "+node.getPath() + " deleted");
         } catch(ReferentialIntegrityException ref){
-	        //LOG.info("ReferentialIntegrityException when removing " + node.getName() + " node from Trash", ref);
+	        LOG.warn("ReferentialIntegrityException when removing " + node.getName() + " node from Trash", ref);
             session.refresh(false);
         } catch (ConstraintViolationException cons) {
-	        //LOG.info("ConstraintViolationException when removing " + node.getName() + " node from Trash", cons);
+	        LOG.error("ConstraintViolationException when removing " + node.getName() + " node from Trash", cons);
             session.refresh(false);
         } catch(Exception ex){
-            LOG.info("Error while removing " + node.getName() + " node from Trash", ex);
+            LOG.error("Error while removing " + node.getName() + " node from Trash", ex);
         }
-        return;
     }
 
     private void removeReferences(Node node) throws Exception {
-        LOG.info("Remove References for node "+node.getPath());
-        RelationsService relationService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(RelationsService.class);
         PropertyIterator iter = node.getReferences();
-        while (iter.hasNext()){
-            Node refNode = iter.nextProperty().getParent();
-            LOG.info("Remove relation between node in trash ("+node.getPath()+") and node not in trash ("+refNode.getPath()+")");
-            relationService.removeRelation(refNode, node.getPath());
+        if (iter.hasNext()){
+            //if there is a reference, move it
+            LOG.debug("Node "+node.getPath()+" is referenced by "+iter.nextProperty().getPath()+", move it to trash root");
+            node.getSession().move(node.getPath(), "/Trash/"+node.getName());
+            //if we do something with this node, no need to go deeper
+            return;
         }
 
         NodeIterator children = node.getNodes();
