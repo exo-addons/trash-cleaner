@@ -131,10 +131,12 @@ public class TrashCleanerJob implements Job {
     }
 
     private void removeReferences(Node node) throws Exception {
+        LOG.info("Remove References for node "+node.getPath());
         RelationsService relationService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(RelationsService.class);
         PropertyIterator iter = node.getReferences();
         while (iter.hasNext()){
             Node refNode = iter.nextProperty().getParent();
+            LOG.info("Remove relation between node in trash ("+node.getPath()+") and node not in trash ("+refNode.getPath()+")");
             relationService.removeRelation(refNode, node.getPath());
         }
 
