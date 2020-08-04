@@ -123,6 +123,7 @@ public class TrashCleanerJob implements Job {
             session.refresh(false);
         } catch(Exception ex){
             LOG.error("Error while removing " + node.getName() + " node from Trash", ex);
+            session.refresh(false);
         }
     }
 
