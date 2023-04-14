@@ -8,7 +8,7 @@
   <external-component-plugins>
     <target-component>org.exoplatform.services.scheduler.JobSchedulerService</target-component>
     <component-plugin>
-      <name>TrashCleanJob</name>
+      <name>ComputeSizeTrash</name>
       <set-method>addCronJob</set-method>
       <type>org.exoplatform.services.scheduler.CronJob</type>
       <description>add a cron job to the JobSchedulerService</description>
@@ -17,10 +17,10 @@
           <name>cronjob.info</name>
           <description>Trash Cleaner Job</description>
           <property name="job"
-                    value="org.exoplatform.addons.trashCleaner.TrashCleanerJob"/>
+                    value="org.exoplatform.addons.trashCleaner.ComputeTrashSizeJob"/>
           <property name="groupName" value="group1"/>
-          <property name="expression" value="${trashcleaner.cron.expression:0 0 21 * * ?}"/>
-          <property name="jobName" value="TrashCleanerJob"/>
+          <property name="expression" value="${computeTrashSizeJob.cron.expression:0 0/2 * * * ?}"/>
+          <property name="jobName" value="ComputeTrashSizeJob"/>
         </properties-param>
       </init-params>
     </component-plugin>
