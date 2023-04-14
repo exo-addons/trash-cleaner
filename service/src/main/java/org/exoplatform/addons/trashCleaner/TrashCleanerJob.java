@@ -38,7 +38,7 @@ public class TrashCleanerJob implements Job {
         if (timeLimit == null) timeLimit = "30";
         LOG.info("Start TrashCleanerJob, delete nodes in trash older than "+timeLimit+" days.");
         TrashService trashService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(TrashService.class);
-	    int deletedNode = 0;
+	      int deletedNode = 0;
         Node trashNode = trashService.getTrashHomeNode();
 
         try {
