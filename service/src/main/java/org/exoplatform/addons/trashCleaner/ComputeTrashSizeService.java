@@ -2,28 +2,34 @@ package org.exoplatform.addons.trashCleaner;
 
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.services.cms.documents.TrashService;
-import org.quartz.Job;
+import org.exoplatform.services.rest.resource.ResourceContainer;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 
+import javax.annotation.security.RolesAllowed;
 import javax.jcr.Node;
 import javax.jcr.NodeIterator;
 import javax.jcr.RepositoryException;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 
-public class ComputeTrashSizeJob implements Job {
+@Path("computeTrashSize")
+public class ComputeTrashSizeService implements ResourceContainer {
 
-  private static final Log LOG = ExoLogger.getLogger(ComputeTrashSizeJob.class);
+  private static final Log LOG = ExoLogger.getLogger(ComputeTrashSizeService.class);
   int nbFiles;
   long size;
 
 
-  @Override
-  public void execute(JobExecutionContext jobExecutionContext) throws JobExecutionException {
+  @GET
+  @RolesAllowed("administrators")
+  public Response computeTrashSize(JobExecutionContext jobExecutionContext) throws JobExecutionException {
     LOG.info("Compute Trash size.");
     TrashService trashService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(TrashService.class);
     nbFiles = 0;
@@ -38,7 +44,10 @@ public class ComputeTrashSizeJob implements Job {
     } catch (RepositoryException ex){
       LOG.info("Failed to get child nodes", ex);
     }
-    LOG.info("Compute Trash size successfully. There are {} files in trash, with a size of {}!", nbFiles, humanReadableByteCountBin(size));
+    String result = "Compute Trash size successfully. There are "+nbFiles+" files in trash, with a size of "+humanReadableByteCountBin(size)+"!";
+    LOG.info(result);
+    return Response.ok(result).build();
+
   }
 
   private void computeSubFolderSize(Node node) throws RepositoryException {
