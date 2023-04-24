@@ -77,7 +77,9 @@ public class ComputeTrashSizeService implements ResourceContainer {
         nbFiles++;
         Node content=currentNode.getNode("jcr:content");
         size += getContentSize(content);
-        versionHistorySize += computeVersionHistorySizeForNode(currentNode);
+        if (currentNode.isNodeType("mix:versionable")) {
+          versionHistorySize += computeVersionHistorySizeForNode(currentNode);
+        }
       } else if (currentNode.isNodeType("nt:folder") || currentNode.isNodeType("nt:unstructured")) {
         computeSubFolderSize(currentNode);
       }
