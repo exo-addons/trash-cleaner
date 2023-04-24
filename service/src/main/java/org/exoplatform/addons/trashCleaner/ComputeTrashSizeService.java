@@ -2,9 +2,13 @@ package org.exoplatform.addons.trashCleaner;
 
 import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.services.cms.documents.TrashService;
+import org.exoplatform.services.jcr.RepositoryService;
+import org.exoplatform.services.jcr.core.ManageableRepository;
+import org.exoplatform.services.jcr.ext.common.SessionProvider;
 import org.exoplatform.services.rest.resource.ResourceContainer;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
+import org.exoplatform.services.security.ConversationState;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 
@@ -12,12 +16,17 @@ import javax.annotation.security.RolesAllowed;
 import javax.jcr.Node;
 import javax.jcr.NodeIterator;
 import javax.jcr.RepositoryException;
+import javax.jcr.Session;
+import javax.jcr.version.Version;
+import javax.jcr.version.VersionIterator;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 @Path("computeTrashSize")
 public class ComputeTrashSizeService implements ResourceContainer {
@@ -25,6 +34,14 @@ public class ComputeTrashSizeService implements ResourceContainer {
   private static final Log LOG = ExoLogger.getLogger(ComputeTrashSizeService.class);
   int nbFiles;
   long size;
+
+  long versionHistorySize;
+
+  RepositoryService repositoryService;
+
+  public ComputeTrashSizeService(RepositoryService repositoryService) {
+    this.repositoryService = repositoryService;
+  }
 
 
   @GET
@@ -34,6 +51,7 @@ public class ComputeTrashSizeService implements ResourceContainer {
     TrashService trashService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(TrashService.class);
     nbFiles = 0;
     size = 0;
+    versionHistorySize=0;
     Node trashNode = trashService.getTrashHomeNode();
 
     try {
@@ -44,7 +62,7 @@ public class ComputeTrashSizeService implements ResourceContainer {
     } catch (RepositoryException ex){
       LOG.info("Failed to get child nodes", ex);
     }
-    String result = "Compute Trash size successfully. There are "+nbFiles+" files in trash, with a size of "+humanReadableByteCountBin(size)+"!";
+    String result = "Compute Trash size successfully. There are "+nbFiles+" files in trash, with a size of "+humanReadableByteCountBin(size)+". Theses files are related to a size of "+humanReadableByteCountBin(versionHistorySize)+" in versions history!";
     LOG.info(result);
     return Response.ok(result).build();
 
@@ -58,15 +76,28 @@ public class ComputeTrashSizeService implements ResourceContainer {
       if (currentNode.isNodeType("nt:file")) {
         nbFiles++;
         Node content=currentNode.getNode("jcr:content");
-        try {
-          size += content.getProperty("jcr:data").getValue().getStream().readAllBytes().length;
-        } catch (IOException e) {
-          LOG.error("Unable to read size for node {}",currentNode.getPath());
-        }
+        size += getContentSize(content);
+        versionHistorySize += computeVersionHistorySizeForNode(currentNode);
       } else if (currentNode.isNodeType("nt:folder") || currentNode.isNodeType("nt:unstructured")) {
         computeSubFolderSize(currentNode);
       }
     }
+  }
+
+  private long computeVersionHistorySizeForNode(Node currentNode) throws RepositoryException {
+    List<Version> versions = getFileVersions(currentNode.getUUID());
+    return versions.stream().reduce(0, (subtotal, element) -> {
+      try {
+        return subtotal + getContentSize(element.getNode("jcr:frozenNode").getNode("jcr:content"));
+      } catch (RepositoryException e) {
+        try {
+          LOG.error("Unable to read version {} size",element.getPath(),e);
+        } catch (RepositoryException ex) {
+          //ignore it
+        }
+        return subtotal;
+      }
+    }, Integer::sum);
   }
 
   public static String humanReadableByteCountBin(long bytes) {
@@ -82,5 +113,51 @@ public class ComputeTrashSizeService implements ResourceContainer {
     }
     value *= Long.signum(bytes);
     return String.format("%.1f %ciB", value / 1024.0, ci.current());
+  }
+
+
+  public List<Version> getFileVersions(String fileNodeId) {
+    List<Version> fileVersions = new ArrayList<>();
+
+    try {
+      ManageableRepository manageableRepository = repositoryService.getCurrentRepository();
+      Session session = getUserSessionProvider(repositoryService).getSession("collaboration", manageableRepository);
+      Node node = session.getNodeByUUID(fileNodeId);
+      Version rootVersion = node.getVersionHistory().getRootVersion();
+      VersionIterator versionIterator = node.getVersionHistory().getAllVersions();
+      while (versionIterator.hasNext()) {
+        Version version = versionIterator.nextVersion();
+        if (version.getUUID().equals(rootVersion.getUUID())) {
+          continue;
+        }
+        fileVersions.add(version);
+      }
+    } catch (RepositoryException e) {
+      throw new IllegalStateException("Error while getting file versions", e);
+    }
+    return fileVersions;
+  }
+
+  public static SessionProvider getUserSessionProvider(RepositoryService repositoryService) {
+    SessionProvider sessionProvider = new SessionProvider(ConversationState.getCurrent());
+    try {
+      ManageableRepository repository = repositoryService.getCurrentRepository();
+      String workspace = repository.getConfiguration().getDefaultWorkspaceName();
+
+      sessionProvider.setCurrentRepository(repository);
+      sessionProvider.setCurrentWorkspace(workspace);
+      return sessionProvider;
+    } catch (RepositoryException e) {
+      throw new IllegalStateException("Can't build a SessionProvider", e);
+    }
+  }
+
+  public int getContentSize(Node content) throws RepositoryException {
+    try {
+      return content.getProperty("jcr:data").getValue().getStream().readAllBytes().length;
+    } catch (Exception e) {
+      LOG.error("Unable to compute size for node {}", content.getPath());
+      return 0;
+    }
   }
 }
