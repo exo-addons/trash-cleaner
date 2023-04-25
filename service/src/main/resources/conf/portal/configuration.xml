@@ -8,4 +8,8 @@
   <component>
     <type>org.exoplatform.addons.trashCleaner.ComputeTrashSizeService</type>
   </component>
+
+  <component>
+    <type>org.exoplatform.addons.trashCleaner.ComputeUserFolderSizeService</type>
+  </component>
 </configuration>
