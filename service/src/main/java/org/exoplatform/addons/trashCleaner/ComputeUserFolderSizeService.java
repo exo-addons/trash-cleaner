@@ -96,7 +96,11 @@ public class ComputeUserFolderSizeService implements ResourceContainer {
         if (child.isNodeType("exo:userFolder")) {
           //check if user is connected
           User user = getUser(username);
-          if (isConnected(user)) {
+          if (user == null) {
+            LOG.info("Folder {} correspond to a not found user. We can delete it", path);
+            subTotalSize += computeSubFolderSize(child);
+            this.totalUsersCount++;
+          } else if (isConnected(user)) {
             Instant lastLoginTime = user.getLastLoginTime().toInstant();
             if (lastLoginTime.isBefore(limitDate)) {
               LOG.debug("User {} lastLoginTime ({}) is before limitDate ({}), need to compute size", user.getUserName(), user.getLastLoginTime(), limitDate);
