@@ -97,7 +97,7 @@ public class ComputeUserFolderSizeService implements ResourceContainer {
           //check if user is connected
           User user = getUser(username);
           if (user == null) {
-            LOG.info("Folder {} correspond to a not found user. We can delete it", path);
+            LOG.info("Folder {} correspond to a not found user. We can delete it", child.getPath());
             subTotalSize += computeSubFolderSize(child);
             this.totalUsersCount++;
           } else if (isConnected(user)) {
@@ -115,7 +115,7 @@ public class ComputeUserFolderSizeService implements ResourceContainer {
               this.totalUsersCount++;
             }
           }
-          if (this.totalUsersCount % 3 ==0) {
+          if (this.totalUsersCount % 100 ==0) {
             LOG.info("Progression : {} users folder computed",this.totalUsersCount);
           }
         } else {
