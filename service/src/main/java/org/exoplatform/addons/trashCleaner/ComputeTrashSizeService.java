@@ -4,6 +4,7 @@ import org.exoplatform.container.ExoContainerContext;
 import org.exoplatform.services.cms.documents.TrashService;
 import org.exoplatform.services.jcr.RepositoryService;
 import org.exoplatform.services.jcr.core.ManageableRepository;
+import org.exoplatform.services.jcr.ext.app.SessionProviderService;
 import org.exoplatform.services.jcr.ext.common.SessionProvider;
 import org.exoplatform.services.rest.resource.ResourceContainer;
 import org.exoplatform.services.log.ExoLogger;
@@ -25,7 +26,6 @@ import javax.ws.rs.core.Response;
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @Path("computeTrashSize")
@@ -37,10 +37,12 @@ public class ComputeTrashSizeService implements ResourceContainer {
 
   long versionHistorySize;
 
-  RepositoryService repositoryService;
+  RepositoryService      repositoryService;
+  SessionProviderService sessionProviderService;
 
-  public ComputeTrashSizeService(RepositoryService repositoryService) {
+  public ComputeTrashSizeService(RepositoryService repositoryService, SessionProviderService sessionProviderService) {
     this.repositoryService = repositoryService;
+    this.sessionProviderService = sessionProviderService;
   }
 
 
@@ -123,7 +125,7 @@ public class ComputeTrashSizeService implements ResourceContainer {
 
     try {
       ManageableRepository manageableRepository = repositoryService.getCurrentRepository();
-      Session session = getUserSessionProvider(repositoryService).getSession("collaboration", manageableRepository);
+      Session session = this.sessionProviderService.getSystemSessionProvider(null).getSession("collaboration", manageableRepository);
       Node node = session.getNodeByUUID(fileNodeId);
       Version rootVersion = node.getVersionHistory().getRootVersion();
       VersionIterator versionIterator = node.getVersionHistory().getAllVersions();
@@ -140,19 +142,6 @@ public class ComputeTrashSizeService implements ResourceContainer {
     return fileVersions;
   }
 
-  public static SessionProvider getUserSessionProvider(RepositoryService repositoryService) {
-    SessionProvider sessionProvider = new SessionProvider(ConversationState.getCurrent());
-    try {
-      ManageableRepository repository = repositoryService.getCurrentRepository();
-      String workspace = repository.getConfiguration().getDefaultWorkspaceName();
-
-      sessionProvider.setCurrentRepository(repository);
-      sessionProvider.setCurrentWorkspace(workspace);
-      return sessionProvider;
-    } catch (RepositoryException e) {
-      throw new IllegalStateException("Can't build a SessionProvider", e);
-    }
-  }
 
   public int getContentSize(Node content) throws RepositoryException {
     try {
