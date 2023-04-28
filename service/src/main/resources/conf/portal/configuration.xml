@@ -12,4 +12,25 @@
   <component>
     <type>org.exoplatform.addons.trashCleaner.ComputeUserFolderSizeService</type>
   </component>
+
+  <external-component-plugins>
+    <target-component>org.exoplatform.services.scheduler.JobSchedulerService</target-component>
+    <component-plugin>
+      <name>TrashCleaner</name>
+      <set-method>addCronJob</set-method>
+      <type>org.exoplatform.services.scheduler.CronJob</type>
+      <description>add a cron job to the JobSchedulerService</description>
+      <init-params>
+        <properties-param>
+          <name>cronjob.info</name>
+          <description>Trash Cleaner Job</description>
+          <property name="job"
+                    value="org.exoplatform.addons.trashCleaner.TrashCleanerJob"/>
+          <property name="groupName" value="group1"/>
+          <property name="expression" value="${computeTrashSizeJob.cron.expression:0 0 20 * * ?}"/>
+          <property name="jobName" value="ComputeTrashSizeJob"/>
+        </properties-param>
+      </init-params>
+    </component-plugin>
+  </external-component-plugins>
 </configuration>
