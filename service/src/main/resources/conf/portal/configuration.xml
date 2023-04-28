@@ -28,7 +28,7 @@
                     value="org.exoplatform.addons.trashCleaner.TrashCleanerJob"/>
           <property name="groupName" value="group1"/>
           <property name="expression" value="${computeTrashSizeJob.cron.expression:0 0 20 * * ?}"/>
-          <property name="jobName" value="ComputeTrashSizeJob"/>
+          <property name="jobName" value="TrashCleanerJob"/>
         </properties-param>
       </init-params>
     </component-plugin>
