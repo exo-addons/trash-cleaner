@@ -53,6 +53,7 @@ public class TrashCleanerJob implements Job {
         while (childNodes.hasNext()) {
           Node currentNode = (Node) childNodes.next();
           try {
+            current++;
             if (current % 50 == 0) {
               LOG.info("Checking node " + currentNode.getName() + " node from Trash (" + current + "/" + size + ")");
             } else {
@@ -72,7 +73,6 @@ public class TrashCleanerJob implements Job {
               deleteNode(currentNode);
               deletedNode++;
             }
-            current++;
           } catch (Exception ex) {
             LOG.info("Error while removing " + currentNode.getName() + " node from Trash", ex);
           }
@@ -118,17 +118,17 @@ public class TrashCleanerJob implements Job {
         LOG.error("An error occurs while removing audit for node {}", node.getPath(), ex);
       }
       node.remove();
-      parentNode.save();
+      node.getSession().save();
       LOG.debug("Node " + node.getPath() + " deleted");
     } catch (ReferentialIntegrityException ref) {
       LOG.warn("ReferentialIntegrityException when removing " + node.getName() + " node from Trash", ref);
-      session.refresh(false);
+      session.refresh(true);
     } catch (ConstraintViolationException cons) {
       LOG.error("ConstraintViolationException when removing " + node.getName() + " node from Trash", cons);
-      session.refresh(false);
+      session.refresh(true);
     } catch (Exception ex) {
       LOG.error("Error while removing " + node.getName() + " node from Trash", ex);
-      session.refresh(false);
+      session.refresh(true);
     }
   }
 
