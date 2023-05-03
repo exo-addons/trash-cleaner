@@ -10,6 +10,7 @@ import org.exoplatform.services.jcr.RepositoryService;
 import org.exoplatform.ecm.webui.utils.Utils;
 import org.exoplatform.ecm.webui.utils.PermissionUtil;
 import org.exoplatform.services.jcr.core.ManageableRepository;
+import org.exoplatform.services.jcr.ext.app.SessionProviderService;
 import org.exoplatform.services.jcr.ext.common.SessionProvider;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -20,7 +21,6 @@ import org.quartz.DisallowConcurrentExecution;
 
 import javax.jcr.*;
 import javax.jcr.nodetype.ConstraintViolationException;
-import javax.management.relation.RelationService;
 import java.util.Calendar;
 
 /**
@@ -74,12 +74,12 @@ public class TrashCleanerJob implements Job {
               deletedNode++;
             }
           } catch (Exception ex) {
-            LOG.info("Error while removing " + currentNode.getName() + " node from Trash", ex);
+            LOG.error("Error while removing " + currentNode.getName() + " node from Trash", ex);
           }
         }
       }
     } catch (RepositoryException ex) {
-      LOG.info("Failed to get child nodes", ex);
+      LOG.error("Failed to get child nodes", ex);
     }
     LOG.info("Empty Trash folder successfully! " + deletedNode + " nodes deleted");
   }
@@ -90,45 +90,47 @@ public class TrashCleanerJob implements Job {
     ThumbnailService thumbnailService = ExoContainerContext.getCurrentContainer()
                                                            .getComponentInstanceOfType(ThumbnailService.class);
     RepositoryService repoService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(RepositoryService.class);
-    Session session = node.getSession();
-    Node parentNode = node.getParent();
+    SessionProvider sessionProviderForDeleteNode = SessionProvider.createSystemProvider();
+    Session sessionForDeleteNode =sessionProviderForDeleteNode.getSession("collaboration",repoService.getDefaultRepository());
     LOG.debug("Try to delete node " + node.getPath());
     try {
+      Node nodeToDelete = (Node)sessionForDeleteNode.getItem(node.getPath());
+
       try {
-        removeReferences(node);
+        removeReferences(nodeToDelete);
       } catch (Exception ex) {
-        LOG.error("An error occurs while removing relations for node {}", node.getPath(), ex);
+        LOG.error("An error occurs while removing relations for node {}", nodeToDelete.getPath(), ex);
       }
 
       try {
-        actionService.removeAction(node, repoService.getCurrentRepository().getConfiguration().getName());
+        actionService.removeAction(nodeToDelete, repoService.getCurrentRepository().getConfiguration().getName());
       } catch (Exception ex) {
-        LOG.error("An error occurs while removing actions related to node {} ", node.getPath(), ex);
+        LOG.error("An error occurs while removing actions related to node {} ", nodeToDelete.getPath(), ex);
       }
       try {
-        thumbnailService.processRemoveThumbnail(node);
+        thumbnailService.processRemoveThumbnail(nodeToDelete);
       } catch (Exception ex) {
-        LOG.error("An error occurs while removing thumbnail for node {} ", node.getPath(), ex);
+        LOG.error("An error occurs while removing thumbnail for node {} ", nodeToDelete.getPath(), ex);
       }
       try {
-        if (PermissionUtil.canRemoveNode(node) && node.isNodeType(Utils.EXO_AUDITABLE)) {
-          removeAuditForNode(node, repoService.getCurrentRepository());
+        if (PermissionUtil.canRemoveNode(nodeToDelete) && nodeToDelete.isNodeType(Utils.EXO_AUDITABLE)) {
+          removeAuditForNode(nodeToDelete, repoService.getCurrentRepository());
         }
       } catch (Exception ex) {
-        LOG.error("An error occurs while removing audit for node {}", node.getPath(), ex);
+        LOG.error("An error occurs while removing audit for node {}", nodeToDelete.getPath(), ex);
       }
-      node.remove();
-      node.getSession().save();
-      LOG.debug("Node " + node.getPath() + " deleted");
+      nodeToDelete.remove();
+      nodeToDelete.getSession().save();
+      LOG.debug("Node " + nodeToDelete.getPath() + " deleted");
     } catch (ReferentialIntegrityException ref) {
-      LOG.warn("ReferentialIntegrityException when removing " + node.getName() + " node from Trash", ref);
-      session.refresh(true);
+      LOG.error("ReferentialIntegrityException when removing " + node.getName() + " node from Trash", ref);
     } catch (ConstraintViolationException cons) {
       LOG.error("ConstraintViolationException when removing " + node.getName() + " node from Trash", cons);
-      session.refresh(true);
     } catch (Exception ex) {
       LOG.error("Error while removing " + node.getName() + " node from Trash", ex);
-      session.refresh(true);
+    } finally {
+      sessionForDeleteNode.logout();
+      sessionProviderForDeleteNode.close();
     }
   }
 
