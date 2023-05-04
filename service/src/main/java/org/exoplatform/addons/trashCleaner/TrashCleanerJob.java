@@ -10,7 +10,6 @@ import org.exoplatform.services.jcr.RepositoryService;
 import org.exoplatform.ecm.webui.utils.Utils;
 import org.exoplatform.ecm.webui.utils.PermissionUtil;
 import org.exoplatform.services.jcr.core.ManageableRepository;
-import org.exoplatform.services.jcr.ext.app.SessionProviderService;
 import org.exoplatform.services.jcr.ext.common.SessionProvider;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -48,7 +47,7 @@ public class TrashCleanerJob implements Job {
       if (trashNode.hasNodes()) {
         NodeIterator childNodes = trashNode.getNodes();
         long size = childNodes.getSize();
-        int current = 1;
+        int current = 0;
 
         while (childNodes.hasNext()) {
           Node currentNode = (Node) childNodes.next();

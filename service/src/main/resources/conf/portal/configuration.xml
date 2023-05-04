@@ -13,6 +13,10 @@
     <type>org.exoplatform.addons.trashCleaner.ComputeUserFolderSizeService</type>
   </component>
 
+  <component>
+    <type>org.exoplatform.addons.trashCleaner.TrashCleanerRestService</type>
+  </component>
+
   <external-component-plugins>
     <target-component>org.exoplatform.services.scheduler.JobSchedulerService</target-component>
     <component-plugin>
