@@ -11,6 +11,7 @@ import org.exoplatform.ecm.webui.utils.Utils;
 import org.exoplatform.ecm.webui.utils.PermissionUtil;
 import org.exoplatform.services.jcr.core.ManageableRepository;
 import org.exoplatform.services.jcr.ext.common.SessionProvider;
+import org.exoplatform.services.jcr.impl.core.SessionImpl;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.quartz.Job;
@@ -61,6 +62,7 @@ public class TrashCleanerJob implements Job {
             if (currentNode.getName().equals("exo:actions") && currentNode.hasNode("trashFolder")) {
               continue;
             }
+            LOG.debug("Session id used for read node : {}, isValid={}", ((SessionImpl)currentNode.getSession()).getId(), currentNode.getSession().isLive());
             if (currentNode.hasProperty("exo:lastModifiedDate")) {
               long dateCreated = currentNode.getProperty("exo:lastModifiedDate").getDate().getTimeInMillis();
               if ((Calendar.getInstance().getTimeInMillis() - dateCreated > Long.parseLong(timeLimit) * 24 * 60 * 60 * 1000)
@@ -91,7 +93,7 @@ public class TrashCleanerJob implements Job {
     RepositoryService repoService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(RepositoryService.class);
     SessionProvider sessionProviderForDeleteNode = SessionProvider.createSystemProvider();
     Session sessionForDeleteNode =sessionProviderForDeleteNode.getSession("collaboration",repoService.getDefaultRepository());
-    LOG.debug("Try to delete node " + node.getPath());
+    LOG.debug("Try to delete node {} with sessionId={}, isValid={}",node.getPath(),((SessionImpl)sessionForDeleteNode).getId(), sessionForDeleteNode.isLive());
     try {
       Node nodeToDelete = (Node)sessionForDeleteNode.getItem(node.getPath());
 
