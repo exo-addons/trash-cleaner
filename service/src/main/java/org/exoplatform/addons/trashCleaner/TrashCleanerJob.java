@@ -94,10 +94,10 @@ public class TrashCleanerJob implements Job {
         recursiveDelete(child);
       }
     }
-    deleteNode(node.getUUID());
+    deleteNode(node);
   }
 
-  public void deleteNode(String nodeUuid) throws Exception {
+  public void deleteNode(Node node) throws Exception {
     ActionServiceContainer actionService = ExoContainerContext.getCurrentContainer()
                                                               .getComponentInstanceOfType(ActionServiceContainer.class);
     ThumbnailService thumbnailService = ExoContainerContext.getCurrentContainer()
@@ -105,12 +105,9 @@ public class TrashCleanerJob implements Job {
     RepositoryService repoService = ExoContainerContext.getCurrentContainer().getComponentInstanceOfType(RepositoryService.class);
     SessionProvider sessionProviderForDeleteNode = SessionProvider.createSystemProvider();
     Session sessionForDeleteNode =sessionProviderForDeleteNode.getSession("collaboration",repoService.getDefaultRepository());
-    String nodeName="";
+    LOG.debug("Try to delete node {}",node.getPath());
     try {
-      Node nodeToDelete =  sessionForDeleteNode.getNodeByUUID(nodeUuid);
-      LOG.debug("Try to delete node {}",nodeToDelete.getPath());
-      nodeName= nodeToDelete.getName();
-
+      Node nodeToDelete = readNodeWithNewSession(node,sessionForDeleteNode);
       try {
         removeReferences(nodeToDelete);
       } catch (Exception ex) {
@@ -138,14 +135,26 @@ public class TrashCleanerJob implements Job {
       nodeToDelete.getSession().save();
       LOG.debug("Node " + nodeToDelete.getPath() + " deleted");
     } catch (ReferentialIntegrityException ref) {
-      LOG.error("ReferentialIntegrityException when removing " + nodeName + " node from Trash", ref);
+      LOG.error("ReferentialIntegrityException when removing " + node.getName() + " node from Trash", ref);
     } catch (ConstraintViolationException cons) {
-      LOG.error("ConstraintViolationException when removing " + nodeName + " node from Trash", cons);
+      LOG.error("ConstraintViolationException when removing " + node.getName() + " node from Trash", cons);
     } catch (Exception ex) {
-      LOG.error("Error while removing " + nodeName + " node from Trash", ex);
+      LOG.error("Error while removing " + node.getName() + " node from Trash", ex);
     } finally {
       sessionForDeleteNode.logout();
       sessionProviderForDeleteNode.close();
+    }
+  }
+
+  private Node readNodeWithNewSession(Node node, Session sessionForDeleteNode) throws RepositoryException {
+
+    try {
+      String uuid = node.getUUID();
+      return sessionForDeleteNode.getNodeByUUID(uuid);
+    } catch (UnsupportedRepositoryOperationException e) {
+      //node have no uuid
+      //read it by path
+      return (Node)sessionForDeleteNode.getItem(node.getPath());
     }
   }
 
