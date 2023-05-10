@@ -11,6 +11,7 @@ import org.exoplatform.ecm.webui.utils.Utils;
 import org.exoplatform.ecm.webui.utils.PermissionUtil;
 import org.exoplatform.services.jcr.core.ManageableRepository;
 import org.exoplatform.services.jcr.ext.common.SessionProvider;
+import org.exoplatform.services.jcr.impl.core.NodeImpl;
 import org.exoplatform.services.jcr.impl.core.SessionImpl;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -21,7 +22,9 @@ import org.quartz.DisallowConcurrentExecution;
 
 import javax.jcr.*;
 import javax.jcr.nodetype.ConstraintViolationException;
+import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.List;
 
 /**
  * Created by Romain Dénarié (romain.denarie@exoplatform.com) on 22/01/16.
@@ -52,6 +55,7 @@ public class TrashCleanerJob implements Job {
 
         while (childNodes.hasNext()) {
           Node currentNode = (Node) childNodes.next();
+
           try {
             current++;
             if (current % 50 == 0) {
@@ -147,15 +151,8 @@ public class TrashCleanerJob implements Job {
   }
 
   private Node readNodeWithNewSession(Node node, Session sessionForDeleteNode) throws RepositoryException {
-
-    try {
-      String uuid = node.getUUID();
-      return sessionForDeleteNode.getNodeByUUID(uuid);
-    } catch (UnsupportedRepositoryOperationException e) {
-      //node have no uuid
-      //read it by path
-      return (Node)sessionForDeleteNode.getItem(node.getPath());
-    }
+    String idf = ((NodeImpl)node).getIdentifier();
+    return ((SessionImpl)sessionForDeleteNode).getNodeByIdentifier(idf);
   }
 
   private void removeReferences(Node node) throws Exception {
