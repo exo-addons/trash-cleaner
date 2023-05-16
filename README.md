@@ -1,5 +1,8 @@
 # trash-cleaner
 
+
+# :warning: **Outdated addon : Since eXo Platform 6.5.0, this feature is moved in the product. So the addon is no more updated.**
+
 Trash Cleaner Job.
 
 Deploy the addon with ./addon install exo-trash-cleaner
